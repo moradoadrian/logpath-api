@@ -1,0 +1,17 @@
+@HostAddress = http://localhost:5062
+
+### 1. Enviar un evento falso (Simulando al POS)
+POST {{HostAddress}}/api/logs
+Content-Type: application/json
+
+{
+  "level": "SUCCESS",
+  "action": "Transacción de venta",
+  "userId": "12345",
+  "userName": "Cajero_Adrian",
+  "details": "Venta de productos: Producto A (2 unidades), Producto B (1 unidad). Total: $150.00"
+}
+
+### 2. Leer los eventos guardados
+GET {{HostAddress}}/api/logs
+Accept: application/json
