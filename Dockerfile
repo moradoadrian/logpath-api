@@ -1,5 +1,5 @@
-# Usa el entorno de trabajo oficial de .NET 8
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# Usa el entorno de trabajo oficial de .NET 10
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /app
 
 # Copia los archivos y restaura dependencias
@@ -11,7 +11,7 @@ COPY . ./
 RUN dotnet publish -c Release -o out
 
 # Crea la imagen final, super ligera
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app/out .
 
