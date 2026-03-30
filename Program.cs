@@ -76,4 +76,47 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+// 6. ENDPOINT GET: Auditoría Forense con Inteligencia Artificial
+app.MapGet("/api/logs/analyze", async (AppDbContext db) =>
+{
+    // 1. Extraemos los últimos 50 logs de la base de datos
+    var logs = await db.PosEvents.OrderByDescending(l => l.Timestamp).Take(50).ToListAsync();
+    
+    if (!logs.Any()) return Results.BadRequest("No hay suficientes datos para analizar.");
+
+    // 2. Preparamos el resumen para la IA
+    var logSummary = string.Join("\n", logs.Select(l => 
+        $"[{l.Timestamp:HH:mm}] Usuario: {l.UserName} | Acción: {l.Action} | Nivel: {l.Level}"
+    ));
+
+    // El Prompt que le da el rol a la IA
+    var prompt = $"Eres un auditor experto en ciberseguridad y prevención de fraude en sistemas de Punto de Venta (POS). Analiza estos últimos 50 eventos. Detecta patrones inusuales, posibles fraudes (ej. muchas cancelaciones del mismo cajero) o fallas recurrentes. Dame un reporte técnico, profesional y muy breve en 3 puntos clave (usa viñetas):\n\n{logSummary}";
+
+    // 3. Llamada REAL a la API de Inteligencia Artificial (Gemini)
+    string geminiApiKey = "AIzaSyCRKF-0dTjmO_Mo95HjFGiQwSBp1x6lIEU"; 
+    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={geminiApiKey}";
+
+    using var httpClient = new HttpClient();
+    var requestBody = new
+    {
+        contents = new[] { new { parts = new[] { new { text = prompt } } } }
+    };
+
+    try
+    {
+        var response = await httpClient.PostAsJsonAsync(geminiUrl, requestBody);
+        var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        
+        // Extraemos la respuesta de la IA navegando por el JSON
+        var aiText = result.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+
+        return Results.Ok(new { analysis = aiText });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error de IA: {ex.Message}");
+        return Results.Problem("El auditor de IA no está disponible en este momento.");
+    }
+});
+
 app.Run();
