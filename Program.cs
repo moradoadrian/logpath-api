@@ -1,6 +1,7 @@
 using LogPath.Api.Data;
 using LogPath.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,45 @@ app.MapPost("/api/logs", async (PosEvent newLog, AppDbContext db) =>
     
     db.PosEvents.Add(newLog);
     await db.SaveChangesAsync(); // ¡Aquí ocurre la magia de guardado!
+
+    // 4. ENDPOINT POST: Guardar en la Base de Datos en la nube
+app.MapPost("/api/logs", async (PosEvent newLog, AppDbContext db) =>
+{
+    if (newLog.Timestamp == default)
+    {
+        newLog.Timestamp = DateTime.UtcNow;
+    }
+    
+    db.PosEvents.Add(newLog);
+    await db.SaveChangesAsync(); // ¡Aquí ocurre la magia de guardado!
+
+    // 🔥 LA INNOVACIÓN REAL: Notificación a Discord si es un error
+    if (newLog.Level.ToUpper() == "ERROR" || newLog.Level.ToUpper() == "CRITICAL")
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            
+            // El mensaje que llegará a tu celular/Discord
+            var discordMessage = new 
+            { 
+                content = $"🚨 **¡ALERTA EN LOGPATH!** 🚨\n**Nivel:** {newLog.Level}\n**Acción:** {newLog.Action}\n**Operador:** {newLog.UserName}\n**Detalles:** {newLog.Details}" 
+            };
+
+            string webhookUrl = "https://discordapp.com/api/webhooks/1488008412968255579/GnoAKWADQp-iZ0Q0MobtSMt_XOCn-paLvKMi86WNrfCcsEqLurXGY7hN2ZEj81U_PNmH"; 
+            
+            // Disparamos la alerta sin bloquear la respuesta de la API
+            await httpClient.PostAsJsonAsync(webhookUrl, discordMessage);
+        }
+        catch (Exception ex)
+        {
+            // Si Discord falla, lo ignoramos para no tirar nuestra API
+            Console.WriteLine($"Error al enviar alerta a Discord: {ex.Message}");
+        }
+    }
+    
+    return Results.Created($"/api/logs/{newLog.Id}", newLog);
+});
     
     return Results.Created($"/api/logs/{newLog.Id}", newLog);
 });

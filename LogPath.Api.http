@@ -1,15 +1,63 @@
-@HostAddress = http://localhost:5062
+@HostAddress = http://logpath-logpathapi-jstq8p-c92805-108-165-47-114.traefik.me
 
 ### 1. Enviar un evento falso (Simulando al POS)
 POST {{HostAddress}}/api/logs
 Content-Type: application/json
 
 {
-  "level": "SUCCESS",
-  "action": "Transacción de venta",
+  "level": "ERROR",
+  "action": "Acceso denegado",
+  "userId": "UNKNOWN",
+  "userName": "Desconocido",
+  "details": "Múltiples intentos de login fallidos en CAJA-03. IP bloqueada temporalmente."
+}
+
+### 2. ADVERTENCIA: Devolución de alto valor
+POST {{HostAddress}}/api/logs
+Content-Type: application/json
+
+{
+  "level": "WARNING",
+  "action": "Reembolso procesado",
+  "userId": "9982",
+  "userName": "Carlos_Gerente",
+  "details": "Devolución en efectivo de $2,500 MXN. Ticket #89921. Requiere firma."
+}
+
+### 3. INFORMACIÓN: Apertura de turno
+POST {{HostAddress}}/api/logs
+Content-Type: application/json
+
+{
+  "level": "INFO",
+  "action": "Apertura de caja",
   "userId": "12345",
   "userName": "Cajero_Adrian",
-  "details": "Venta de productos: Producto A (2 unidades), Producto B (1 unidad). Total: $150.00"
+  "details": "Fondo fijo inicial verificado: $1,000 MXN. Sistema POS Miche Lts en línea."
+}
+
+### 4. ÉXITO: Venta con tarjeta
+POST {{HostAddress}}/api/logs
+Content-Type: application/json
+
+{
+  "level": "SUCCESS",
+  "action": "Pago con Tarjeta",
+  "userId": "5541",
+  "userName": "Brenda_Cajera",
+  "details": "Transacción aprobada. Terminación 4451. Monto: $850.00 MXN."
+}
+
+### 5. ERROR CRÍTICO: Falla de Hardware
+POST {{HostAddress}}/api/logs
+Content-Type: application/json
+
+{
+  "level": "ERROR",
+  "action": "Falla de Impresora",
+  "userId": "12345",
+  "userName": "Cajero_Adrian",
+  "details": "No se pudo imprimir el ticket #89922. Impresora térmica desconectada o sin papel."
 }
 
 ### 2. Leer los eventos guardados
