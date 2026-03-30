@@ -93,29 +93,37 @@ app.MapGet("/api/logs/analyze", async (AppDbContext db) =>
     var prompt = $"Eres un auditor experto en ciberseguridad y prevención de fraude en sistemas de Punto de Venta (POS). Analiza estos últimos 50 eventos. Detecta patrones inusuales, posibles fraudes (ej. muchas cancelaciones del mismo cajero) o fallas recurrentes. Dame un reporte técnico, profesional y muy breve en 3 puntos clave (usa viñetas):\n\n{logSummary}";
 
     // 3. Llamada REAL a la API de Inteligencia Artificial (Gemini)
-    string geminiApiKey = "AIzaSyCRKF-0dTjmO_Mo95HjFGiQwSBp1x6lIEU"; 
-    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={geminiApiKey}";
-
+    string geminiApiKey = builder.Configuration["GeminiApiKey"] ?? "";
+string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={geminiApiKey}";
     using var httpClient = new HttpClient();
     var requestBody = new
     {
         contents = new[] { new { parts = new[] { new { text = prompt } } } }
     };
 
-    try
+try
     {
         var response = await httpClient.PostAsJsonAsync(geminiUrl, requestBody);
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Gemini API Error: {errorContent}");
+            // Devolvemos un 400 con un mensaje para que Angular lo muestre
+            return Results.BadRequest(new { analysis = "Fallo la validación con Google AI. Revisa tu API Key." });
+        }
+
         var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
         
-        // Extraemos la respuesta de la IA navegando por el JSON
+        // Extraemos la respuesta de la IA
         var aiText = result.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
 
         return Results.Ok(new { analysis = aiText });
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error de IA: {ex.Message}");
-        return Results.Problem("El auditor de IA no está disponible en este momento.");
+        Console.WriteLine($"Excepción de código en IA: {ex.Message}");
+        return Results.BadRequest(new { analysis = "El auditor de IA no está disponible debido a un error interno." });
     }
 });
 
