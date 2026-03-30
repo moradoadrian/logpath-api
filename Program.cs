@@ -39,20 +39,9 @@ app.MapPost("/api/logs", async (PosEvent newLog, AppDbContext db) =>
     }
     
     db.PosEvents.Add(newLog);
-    await db.SaveChangesAsync(); // ¡Aquí ocurre la magia de guardado!
+    await db.SaveChangesAsync(); 
 
-    // 4. ENDPOINT POST: Guardar en la Base de Datos en la nube
-app.MapPost("/api/logs", async (PosEvent newLog, AppDbContext db) =>
-{
-    if (newLog.Timestamp == default)
-    {
-        newLog.Timestamp = DateTime.UtcNow;
-    }
-    
-    db.PosEvents.Add(newLog);
-    await db.SaveChangesAsync(); // ¡Aquí ocurre la magia de guardado!
-
-    // 🔥 LA INNOVACIÓN REAL: Notificación a Discord si es un error
+    //  Notificación a Discord si es un error
     if (newLog.Level.ToUpper() == "ERROR" || newLog.Level.ToUpper() == "CRITICAL")
     {
         try
@@ -79,10 +68,8 @@ app.MapPost("/api/logs", async (PosEvent newLog, AppDbContext db) =>
     
     return Results.Created($"/api/logs/{newLog.Id}", newLog);
 });
-    
-    return Results.Created($"/api/logs/{newLog.Id}", newLog);
-});
 
+// 5. Auto-migraciones al arrancar
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
