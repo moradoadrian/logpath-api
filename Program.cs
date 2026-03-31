@@ -94,7 +94,7 @@ app.MapGet("/api/logs/analyze", async (AppDbContext db) =>
 
     // 3. Llamada REAL a la API de Inteligencia Artificial (Gemini)
     string geminiApiKey = builder.Configuration["GeminiApiKey"] ?? "";
-string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={geminiApiKey}";
+    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={geminiApiKey}";
     using var httpClient = new HttpClient();
     var requestBody = new
     {
