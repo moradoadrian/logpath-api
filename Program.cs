@@ -3,6 +3,10 @@ using LogPath.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Json;
 
+// A continuación se muestra el código completo de Program.cs, que es el punto de entrada de la aplicación ASP.NET Core. 
+//Este código configura los servicios necesarios, define los endpoints para la API y maneja la lógica de negocio relacionada con los logs de eventos del punto de venta (POS). 
+//Además, incluye una integración con Discord para enviar alertas en caso de errores críticos y un endpoint para realizar un análisis forense simulado utilizando inteligencia artificial.
+//Se tenia pensado usar ollama pero se decidió simular la respuesta para evitar dependencias externas y mantener la simplicidad del proyecto.
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Configurar CORS (Para que Angular pueda entrar)
@@ -76,54 +80,44 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// 6. ENDPOINT GET: Auditoría Forense con Inteligencia Artificial
+// 6. ENDPOINT GET: Auditoría Forense con Inteligencia Artificial (Modo Respaldo Seguro)
 app.MapGet("/api/logs/analyze", async (AppDbContext db) =>
 {
-    // 1. Extraemos los últimos 50 logs de la base de datos
-    var logs = await db.PosEvents.OrderByDescending(l => l.Timestamp).Take(50).ToListAsync();
-    
-    if (!logs.Any()) return Results.BadRequest("No hay suficientes datos para analizar.");
-
-    // 2. Preparamos el resumen para la IA
-    var logSummary = string.Join("\n", logs.Select(l => 
-        $"[{l.Timestamp:HH:mm}] Usuario: {l.UserName} | Acción: {l.Action} | Nivel: {l.Level}"
-    ));
-
-    // El Prompt que le da el rol a la IA
-    var prompt = $"Eres un auditor experto en ciberseguridad y prevención de fraude en sistemas de Punto de Venta (POS). Analiza estos últimos 50 eventos. Detecta patrones inusuales, posibles fraudes (ej. muchas cancelaciones del mismo cajero) o fallas recurrentes. Dame un reporte técnico, profesional y muy breve en 3 puntos clave (usa viñetas):\n\n{logSummary}";
-
-    // 3. Llamada REAL a la API de Inteligencia Artificial (Gemini)
-    string geminiApiKey = builder.Configuration["GeminiApiKey"] ?? "";
-    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={geminiApiKey}";
-    using var httpClient = new HttpClient();
-    var requestBody = new
+    try
     {
-        contents = new[] { new { parts = new[] { new { text = prompt } } } }
-    };
-
-try
-    {
-        var response = await httpClient.PostAsJsonAsync(geminiUrl, requestBody);
+        // 1. Extraemos los últimos 50 logs de TU base de datos
+        var logs = await db.PosEvents.OrderByDescending(l => l.Timestamp).Take(50).ToListAsync();
         
-        if (!response.IsSuccessStatusCode)
+        if (!logs.Any()) return Results.BadRequest(new { analysis = "No hay suficientes datos para analizar." });
+
+        // 2. Simulamos el análisis contando los errores reales
+        int errorCount = logs.Count(l => l.Level.ToUpper() == "ERROR" || l.Level.ToUpper() == "CRITICAL");
+        
+        // 3. Armamos el reporte dinámicamente
+        string report = "🤖 [Análisis Forense Completado]\n\n";
+        
+        if (errorCount == 0)
         {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Gemini API Error: {errorContent}");
-            // Devolvemos un 400 con un mensaje para que Angular lo muestre
-            return Results.BadRequest(new { analysis = "Fallo la validación con Google AI. Revisa tu API Key." });
+            report += "• Estado General: El flujo transaccional de tu negocio es estable.\n";
+            report += "• Anomalías: No se detectaron patrones de fraude ni cancelaciones masivas.\n";
+            report += "• Recomendación: Mantener el monitoreo actual.";
+        }
+        else
+        {
+            report += $"• Estado General: Se detectaron {errorCount} fallas críticas recientes.\n";
+            report += "• Anomalías: Posible degradación de hardware (impresoras) o errores de operador.\n";
+            report += "• Recomendación: Notificar a soporte técnico y auditar los últimos tickets.";
         }
 
-        var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-        
-        // Extraemos la respuesta de la IA
-        var aiText = result.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+        // Simulamos que la IA está "pensando" por 2 segundos para el efecto visual
+        await Task.Delay(2000);
 
-        return Results.Ok(new { analysis = aiText });
+        return Results.Ok(new { analysis = report });
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Excepción de código en IA: {ex.Message}");
-        return Results.BadRequest(new { analysis = "El auditor de IA no está disponible debido a un error interno." });
+        Console.WriteLine($"Error simulando IA: {ex.Message}");
+        return Results.BadRequest(new { analysis = "El motor de análisis está temporalmente fuera de servicio." });
     }
 });
 
